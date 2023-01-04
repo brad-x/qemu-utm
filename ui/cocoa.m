@@ -163,27 +163,17 @@ typedef bool (^BoolCodeBlock)(void);
 
 static void with_iothread_lock(CodeBlock block)
 {
-    bool locked = qemu_mutex_iothread_locked();
-    if (!locked) {
-        qemu_mutex_lock_iothread();
-    }
-    block();
-    if (!locked) {
-        qemu_mutex_unlock_iothread();
+    WITH_QEMU_IOTHREAD_LOCK {
+        block();
     }
 }
 
 static bool bool_with_iothread_lock(BoolCodeBlock block)
 {
-    bool locked = qemu_mutex_iothread_locked();
     bool val;
 
-    if (!locked) {
-        qemu_mutex_lock_iothread();
-    }
-    val = block();
-    if (!locked) {
-        qemu_mutex_unlock_iothread();
+    WITH_QEMU_IOTHREAD_LOCK {
+      val = block();
     }
     return val;
 }
@@ -1104,7 +1094,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 
 - (void) notifyMouseModeChange {
     bool tIsAbsoluteEnabled = bool_with_iothread_lock(^{
-        return qemu_input_is_absolute();
+        return qemu_input_is_absolute(active_listener->dcl.con);
     });
 
     if (tIsAbsoluteEnabled == isAbsoluteEnabled) {
@@ -2284,7 +2274,7 @@ static void cocoa_gl_cursor_render()
     glBindTexture(GL_TEXTURE_2D, cursor_texture);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    qemu_gl_run_texture_blit(dgc.gls, false, false);
+    qemu_gl_run_texture_blit(dgc.gls, false);
     glDisable(GL_BLEND);
 }
 
@@ -2331,7 +2321,7 @@ static void cocoa_gl_refresh(DisplayChangeListener *dcl)
                 glBindFramebuffer(GL_FRAMEBUFFER_EXT, 0);
                 glViewport(0, 0, size.width, size.height);
                 glBindTexture(GL_TEXTURE_2D, texture);
-                qemu_gl_run_texture_blit(dgc.gls, y0_top, false);
+                qemu_gl_run_texture_blit(dgc.gls, y0_top);
             } else {
                 surface_gl_setup_viewport(dgc.gls, surface,
                                           size.width, size.height);
@@ -2536,7 +2526,6 @@ static void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
         for (index = 0; index < listeners_count; index++) {
             listeners[index].dcl.con = qemu_console_lookup_by_index(index);
             listeners[index].dcl.ops = ops;
-
             #ifdef CONFIG_OPENGL
             if (display_opengl) {
                 qemu_console_set_display_gl_ctx(listeners[index].dcl.con,

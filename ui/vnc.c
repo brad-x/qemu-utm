@@ -1785,7 +1785,7 @@ uint32_t read_u32(uint8_t *data, size_t offset)
 static void check_pointer_type_change(Notifier *notifier, void *data)
 {
     VncState *vs = container_of(notifier, VncState, mouse_mode_notifier);
-    int absolute = qemu_input_is_absolute();
+    int absolute = qemu_input_is_absolute(vs->vd->dcl.con);
 
     if (vnc_has_feature(vs, VNC_FEATURE_POINTER_TYPE_CHANGE) && vs->absolute != absolute) {
         vnc_lock_output(vs);
@@ -3091,7 +3091,7 @@ static void vnc_rect_updated(VncDisplay *vd, int x, int y, struct timeval * tv)
 
     rect = vnc_stat_rect(vd, x, y);
     if (rect->updated) {
-        return;
+        return ;
     }
     rect->times[rect->idx] = *tv;
     rect->idx = (rect->idx + 1) % ARRAY_SIZE(rect->times);
